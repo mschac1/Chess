@@ -1,0 +1,7 @@
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\obj\Debug\Chess.frmChess.resources
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\obj\Debug\Chess.frmPromotePawn.resources
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\obj\Debug\Chess.csproj.GenerateResource.Cache
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\bin\Debug\Chess.exe
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\bin\Debug\Chess.pdb
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\obj\Debug\Chess.exe
+C:\Users\Menachem\Documents\Personal\Projects\c#\Chess\obj\Debug\Chess.pdb
