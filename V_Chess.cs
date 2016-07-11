@@ -4,7 +4,7 @@ using System.Collections;
 using System.ComponentModel;
 using System.Windows.Forms;
 using System.Data;
-
+using static Chess.Rank;
 using System.IO;
 
 namespace Chess
@@ -15,10 +15,10 @@ namespace Chess
 
 		private boardLabel [ , ] board = new boardLabel[8, 8];
 
-		Game game;
+		ChessGame game;
 
-		Position moveFrom = new Position();
-		Position moveTo = new Position();
+		Point moveFrom = new Point();
+		Point moveTo = new Point();
 		bool moveFlag;
 
 		string direc = @"c:\Menachem\c#\Chess\";
@@ -143,6 +143,7 @@ namespace Chess
 			this.Menu = this.mainMenu1;
 			this.Name = "frmChess";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+
 			this.Text = "Form1";
 			this.Load += new System.EventHandler(this.frmChess_Load);
 			this.ResumeLayout(false);
@@ -203,8 +204,7 @@ namespace Chess
 
 		private void frmChess_Load(object sender, System.EventArgs e)
 		{
-			Directory.SetCurrentDirectory(direc);
-			game = new Game();
+			game = new ChessGame();
 			
 			newGame();
 		}
@@ -215,16 +215,28 @@ namespace Chess
 			moveFlag = false;
             game.pawnPromoter = new PawnCallback(PromotePawn);
         }
+
+        public static String EnumTitleCase (Enum e) {
+            String s = e.ToString();
+            return s.Substring(0, 1) + s.Substring(1).ToLower();
+        }
 		private void RefreshBoard()
 		{
-			for (int i = 0; i < 8; i++)
+
+            System.Reflection.Assembly myAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+            Stream myStream = null;
+            String fileName = null;
+            for (int i = 0; i < 8; i++)
 			{
 				for (int j = 0; j < 8; j++)
 				{
-					if (game[i, j] != null)
-						board[i, j].Image = Image.FromFile(game[i, j].Color + game[i, j].Name + board[i, j].color + fileAppend);
-					else
-						board[i, j].Image = null;
+                    if (game[i, j] != null) {
+                        fileName = EnumTitleCase(game[i, j].Color) + EnumTitleCase(game[i, j].Rank) + board[i, j].color + fileAppend;
+                        myStream = myAssembly.GetManifestResourceStream("Chess.res." + fileName);
+                        board[i, j].Image = System.Drawing.Image.FromStream(myStream);
+                    }
+                    else
+                        board[i, j].Image = null;
 
 				}
 			}
@@ -237,26 +249,25 @@ namespace Chess
 
 			if (moveFlag == false && lbl.Image != null)
 			{
-				moveFrom = new Position(lbl.X, lbl.Y);
+				moveFrom = new Point(lbl.X, lbl.Y);
 				moveFlag = true;
-				lblStatus.Text = "Moving: " + game[lbl.X, lbl.Y].Name;
+				lblStatus.Text = "Moving: " + game[lbl.X, lbl.Y].Rank;
 			}
 			else
 			{
-				moveTo = new Position(lbl.X, lbl.Y);
+				moveTo = new Point(lbl.X, lbl.Y);
 				moveFlag = false;
 				MovePiece(moveFrom, moveTo);
 			}
 		}
-		private void MovePiece(Position from, Position to)
+		private void MovePiece(Point from, Point to)
 		{
-			StatusFlag status = game.Move(from, to);
-			if (status == ChessStatus.VALID)
+			if (game.MovePiece(from, to))
 			{
 				RefreshBoard();
 			}
 			else
-				lblStatus.Text = status.Text;
+				lblStatus.Text = game.Status;
 
 		}
 
@@ -267,17 +278,17 @@ namespace Chess
 		private ChessPiece PromotePawn()
 		{
 			frmPromotePawn PawnDialog = new frmPromotePawn();
-			PawnDialog.LoadPieces(game.Turn);
+			PawnDialog.LoadPieces(game.Turn.ToString());
 
 			PawnDialog.ShowDialog();
 			if (PawnDialog.PromoteTo.Equals("Knight"))
-				return new Knight(game.Turn);
+				return new ChessPiece(KNIGHT, game.Turn);
 			else if (PawnDialog.PromoteTo.Equals("Bishop"))
-				return new Bishop (game.Turn);
+				return new ChessPiece(BISHOP, game.Turn);
 			else if (PawnDialog.PromoteTo.Equals("Rook"))
-				return new Rook (game.Turn);
+				return new ChessPiece(ROOK, game.Turn);
 			else
-				return new Queen (game.Turn);
+				return new ChessPiece(QUEEN, game.Turn);
 		}
 
 	}

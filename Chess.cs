@@ -1,5 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Drawing;
+using static Chess.Color;
+using static Chess.Rank;
 
 namespace Chess
 {
@@ -7,216 +11,257 @@ namespace Chess
 	// The delegate type used to find out what piece to promote pawns to
 	public delegate ChessPiece PawnCallback();
 
-	public class Game
-	{
+	public class ChessGame {
 		#region Variables
 
 		private  ChessPiece [ , ] board = new ChessPiece[8, 8];
 
 		// Indexers used to get chess pieces
-		public  ChessPiece this [int i, int j]
-		{
-			get
-			{
-				return board[i, j];
-			}
+		public  ChessPiece this [int i, int j] {
+			get {return board[i, j];}
 		}
 	
-		private ChessPiece this [Position pos]
-		{
-			get
-			{
-				return board[pos.X, pos.Y];
-			}
-			set
-			{
-				board[pos.X, pos.Y] = value;
-			}
+		private ChessPiece this [Point pos] {
+			get {return board[pos.X, pos.Y];}
+			set {board[pos.X, pos.Y] = value;}
 		}
 
-
-		// The board used for checking the validity of moves and posible checks
-		private Game checkBoard;
-
-		private Position moveFrom;
-		private Position moveTo;
-
-		private string turn;
-		public string Turn
-		{
-			get
-			{
-				return turn;
-			}
-		}
 
 
 		// Castle status flags
-		private bool WhiteLeftCastle;
-		private bool WhiteRightCastle;
-		private bool BlackLeftCastle;
-		private bool BlackRightCastle;
+		internal bool whiteLeftCastle;
+        internal bool whiteRightCastle;
+        internal bool blackLeftCastle;
+        internal bool blackRightCastle;
 
-		private int enPassant;
-
+	
+        Stack<ChessMove> moveStack = new Stack<ChessMove>();
 		// The delegate used to find out what piece to promote pawns to
 		public PawnCallback pawnPromoter;
-		#endregion
 
-		public Game()
-		{
+        public string Status { get; private set; }
+        public Color Turn { get; private set; }
+        public bool GameOver { get; private set; }
+        #endregion
+
+        public ChessGame() {
 			newGame();
 		}
 
-		
-		// Copy Constructor
-		public Game(Game game)
-		{
-			board = new ChessPiece[8, 8];
-			for (int i = 0; i < 8; i++)
-				for (int j = 0; j < 8; j++)
-					board[i, j] = game.board[i, j];
+        public bool MovePiece(Point from, Point to) {
 
-			turn = game.turn;
-			
-			WhiteLeftCastle = game.WhiteLeftCastle;
-			WhiteRightCastle = game.WhiteLeftCastle;
-			BlackLeftCastle = game.WhiteLeftCastle;
-			BlackRightCastle = game.WhiteLeftCastle;
+            // Check if the game is over
+            if (GameOver)
+                return false;
 
-			enPassant = game.enPassant;
-		}
-		
-		
-		public StatusFlag Move(Position from, Position to)
-		{
-			moveFrom = from;
-			moveTo = to;
+            // Check whether the coordinates are invalid
+            if (IsInvalidSquare(from) || IsInvalidSquare(to)) {
+                Status = "Invalid coordinate";
+                return false;
+            }
 
-			// Check whether there is a piece in the "from" position
-			if (this[from] == null)
-				return ChessStatus.INVALID_PIECE;
+            ChessPiece piece = this[from];
 
-			// Check whether the piece being moved is of the same color as the turn
-			if (IsTurn() == false)
-				return ChessStatus.OPPONENTS_PIECE;
+            // Check whether there is a piece in the "from" position
+            if (piece == null) {
+                Status = "There is no piece at that location";
+                return false;
+            }
+/*TODO UNCOMMENT THIS
+            // Check whether the piece being moved is of the same color as the turn
+            if (piece.Color != Turn) {
+                Status = "You are attemptint to move your opponent's piece";
+                return false;
+            }
+*/
+            // If the piece is being moved onto a square occupied by another piece of the same color
+            if (this[to] != null && this[to].Color == this[from].Color) {
+                Status = "Invalid Move";
+                return false;
+            }
 
-			// If the piece is being moved onto a square occupied by another piece of the same color
-			if (this[moveTo] != null && this[moveTo].Color == turn)
-				return ChessStatus.INVALID_BLOCK;
+            ChessMove move = AttemptMove(from, to);
 
-			// Check whether the move is valid based on the manner in which the piece moves
-			StatusFlag status = IsValidMove();
+            if (move == null) {
+                Status = "Invalid Move";
+                return false;
+            }
 
-			// Return any invalid flags
-			if (status != ChessStatus.VALID)
-				return status;
+            makeMove(move);
 
-			// Check whether the move would place the player in check
-			if (IsCheck())
-				return ChessStatus.INVALID_CHECK;
+            // Check whether the move would place the player in check
+            if (IsCheck()) {
+                Status = "That movewould put your king in check";
+                ReverseMove();
+                return false;
+            }
 
-			// Make the move
-			this[to] = this[from];
-			this[from] = null;
+            // TODO check for checkmate, and stalemate
 
-			// If the player moved his pawn to the opposite side, promote it
-			if (this[to].Name == "Pawn")
-			{
-				if ((turn == "White" && to.Y == 0) || (turn == "Black" && to.Y == 7))
-					board[to.X, to.Y] = pawnPromoter();
-			}
+            // TODO Uncomment this ToggleTurn();
 
-			ToggleTurn();
+            //TODO check for check
 
-			// Update casrling flags
-			SetCastleFlags();
-
-			return ChessStatus.VALID;
+            return true;
 		}
 
-		
-		public void newGame()
-		{
-			turn = "White";
+        private void ReverseMove() {
+            throw new NotImplementedException();
+        }
+
+        private void makeMove(ChessMove move) {
+            this[move.To] = this[move.From];
+            this[move.From] = null;
+
+            // TODO en Passant and castle
+            moveStack.Push(move);
+        }
+
+        private bool IsCheck() {
+            return false;
+            //TODO implement this
+        }
+
+        private ChessMove AttemptMove(Point from, Point to) {
+            ChessPiece piece = this[from];
+            ChessMove move = new ChessMove(from, to, this[to]);
+            int dX = Math.Abs(from.X - to.X);
+            int dY = Math.Abs(from.Y - to.Y);
+
+            switch (piece.Rank) {
+                case KNIGHT:
+                    // The knight can move if it is moving 2 in one direction and 1 in the other
+                    if (dX * dY == 2)
+                        return move;
+                    return null;
+
+                case ROOK:
+                    // If dX is 0, the move is vertical, if dY is 0, it's horizontal
+                    if ((dX == 0 ||  dY == 0) && !IsPieceBetween(from, to))
+                        return move;
+                    return null;
+
+                case BISHOP:
+                    // If dX = dY the move is diagonal
+                    if ((dX == dY) && !IsPieceBetween(from, to)) 
+                        return move;                    
+                    return null;
+
+                case QUEEN:
+                    if ((dX == dY || dX == 0 || dY == 0) && !IsPieceBetween(from, to))
+                        return move;
+                    return null;
+
+                case KING:
+                    // Cannot move more than 1 in any direction
+                    if (dX <= 1 && dY <= 1)
+                        return move;
+                    //Check for possible castle
+                    if (dX == 2 && dY == 0 && IsCastleAllowed(from, to))
+                        return move;
+                    return null;
+
+                case PAWN:
+                    return AttemptMovePawn(move);
+            }
+
+            return move;
+        }
+
+        private ChessMove AttemptMovePawn(ChessMove move) {
+            ChessPiece piece = this[move.From];
+            int dX = Math.Abs(move.From.X - move.To.X);
+            int dY = move.To.Y - move.From.Y;
+
+            // Move 1 square forward
+            int allowedDirection = (piece.Color == BLACK ? 1 : -1);
+            if (dX == 0 && dY == allowedDirection && move.opponent == null)
+                return move;
+
+            return null;
+        }
+
+        private bool IsCastleAllowed(Point from, Point to) {
+            throw new NotImplementedException();
+        }
+
+        private bool IsPieceBetween(Point from, Point to) {
+            int dX = Math.Abs(from.X - to.X);
+            int dY = Math.Abs(from.Y - to.Y);
+            int stepX = (dX == 0? 0 : dX / (to.X - from.X));
+            int stepY = (dY == 0? 0 : dY / (to.Y - from.Y));
+            int currX = from.X + stepX;
+            int currY = from.Y + stepY;
+
+            while (currX != to.X || currY != to.Y) {
+                if (this[currX, currY] != null)
+                    return true;
+                currX += stepX;
+                currY += stepY;
+            }
+            return false;
+        }
+
+        private bool IsInvalidSquare(Point from) {
+            return (from.X >= 0 && from.X <= 7 && from.Y >= 0 && from.Y > 7);
+        }
+
+        public void newGame() {
+            Turn = WHITE;
+
+            GameOver = false;
 
 			// Reset castle flags
-			WhiteLeftCastle = true;
-			WhiteRightCastle = true;
-			BlackLeftCastle = true;
-			BlackRightCastle = true;
+			whiteLeftCastle = true;
+			whiteRightCastle = true;
+			blackLeftCastle = true;
+			blackRightCastle = true;
 
-			enPassant = -1;
-			// Reset the board
-			board[0, 0] = new Rook("Black");
-			board[1, 0] = new Knight("Black");
-			board[2, 0] = new Bishop("Black");
-			board[3, 0] = new Queen("Black");
-			board[4, 0] = new King("Black");
-			board[5, 0] = new Bishop("Black");
-			board[6, 0] = new Knight("Black");
-			board[7, 0] = new Rook("Black");
+            moveStack.Clear();
 
-			for (int i = 0; i < 8; i++)
-				board[i, 1] = new Pawn("Black");
+            // Reset the board
+            board[0, 0] = new ChessPiece(ROOK, BLACK);
+            board[1, 0] = new ChessPiece(KNIGHT, BLACK);
+            board[2, 0] = new ChessPiece(BISHOP, BLACK);
+            board[3, 0] = new ChessPiece(QUEEN, BLACK);
+            board[4, 0] = new ChessPiece(KING, BLACK);
+            board[5, 0] = new ChessPiece(BISHOP, BLACK);
+            board[6, 0] = new ChessPiece(KNIGHT, BLACK);
+            board[7, 0] = new ChessPiece(ROOK, BLACK);
 
-			for (int i = 2; i < 6; i++)
-				for (int j = 0; j < 8; j++)
-						board[j, i] = null;
-	
-			for (int i = 0; i < 8; i++)
-				board[i, 6] = new Pawn("White");
+            for (int i = 0; i < 8; i++)
+                board[i, 1] = new ChessPiece(PAWN, BLACK);
 
-			board[0, 7] = new Rook("White");
-			board[1, 7] = new Knight("White");
-			board[2, 7] = new Bishop("White");
-			board[3, 7] = new Queen("White");
-			board[4, 7] = new King("White");
-			board[5, 7] = new Bishop("White");
-			board[6, 7] = new Knight("White");
-			board[7, 7] = new Rook("White");
-		}
+            for (int i = 2; i < 6; i++)
+                for (int j = 0; j < 8; j++)
+                    board[j, i] = null;
+
+            for (int i = 0; i < 8; i++)
+                board[i, 6] = new ChessPiece(PAWN, WHITE);
+
+            board[0, 7] = new ChessPiece(ROOK, WHITE);
+            board[1, 7] = new ChessPiece(KNIGHT, WHITE);
+            board[2, 7] = new ChessPiece(BISHOP, WHITE);
+            board[3, 7] = new ChessPiece(QUEEN, WHITE);
+            board[4, 7] = new ChessPiece(KING, WHITE);
+            board[5, 7] = new ChessPiece(BISHOP, WHITE);
+            board[6, 7] = new ChessPiece(KNIGHT, WHITE);
+            board[7, 7] = new ChessPiece(ROOK, WHITE);
+        }
 		
 		
 		private void ToggleTurn()
 		{
-			if (turn == "White")
-				turn = "Black";
-			else
-				turn = "White";
+            if (Turn == WHITE)
+                Turn = BLACK;
+            else
+                Turn = WHITE;
 
 		}
 		
-		
-		private bool IsTurn()
-		{
-			if (turn == this[moveFrom].Color)
-				return true;
-			return false;
-		}
-		
-		
-		private StatusFlag IsValidMove ()
-		{
-			// The piece being moved
-			ChessPiece piece = this[moveFrom];
+				
+/*		
 
-			// Call the pieces individual move validation and return the resulting status
-			if (piece.Name == "Pawn")
-				return IsValidMove((Pawn) piece);
-			else if (piece.Name == "Rook")
-				return IsValidMove((Rook) piece);
-			else if (piece.Name == "Knight")
-				return IsValidMove((Knight) piece);
-			else if (piece.Name == "Bishop")
-				return IsValidMove((Bishop) piece);
-			else if (piece.Name == "Queen")
-				return IsValidMove((Queen) piece);
-			else 
-				return IsValidMove((King) piece);
-		}
-		
-		
 		private StatusFlag IsValidMove(Pawn pawn)
 		{
 			if (turn.Equals("White"))
@@ -266,169 +311,12 @@ namespace Chess
 
 			return ChessStatus.VALID;
 		}
-		private StatusFlag IsValidMove (Rook rook)
-		{
-			// Validate move
-			int dX = Math.Abs(moveTo.X - moveFrom.X);
-			int dY = Math.Abs(moveTo.Y - moveFrom.Y);
-			if (dY * dX != 0)
-				return ChessStatus.INVALID_MOVE;
-
-			// Check if pieces are in the way
-			if (dX != 0)
-				dX = dX /(moveTo.X - moveFrom.X);
-			if (dY != 0)
-				dY = dY /(moveTo.Y - moveFrom.Y);
-
-			// Vertical Move
-			if (dX == 0)
-			{
-				int j = moveFrom.Y + dY;
-				while(j != moveTo.Y)
-				{
-					if (board[moveFrom.X, j] != null)
-						return ChessStatus.INVALID_BLOCK;
-
-					j += dY;
-				}
-			}
-
-				// Horizontal Move
-			else
-			{
-				int i = moveFrom.X + dX;
-				while(i != moveTo.X)
-				{
-					if (board[i, moveFrom.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-
-					i += dX;
-				}
-			}
-
-			return ChessStatus.VALID;
-		}
-		private StatusFlag IsValidMove(Queen queen)
-		{
-			int dX = Math.Abs(moveTo.X - moveFrom.X);
-			int dY = Math.Abs(moveTo.Y - moveFrom.Y);
-
-			if (dY * dX != 0 && dY != dX)
-				return ChessStatus.INVALID_MOVE;
-
-			// Check if pieces are in the way
-			if (dX != 0)
-				dX = dX /(moveTo.X - moveFrom.X);
-			if (dY != 0)
-				dY = dY /(moveTo.Y - moveFrom.Y);
-			// Vertical Move
-			if (dX == 0)
-			{
-				int j = moveFrom.Y + dY;
-				while(j != moveTo.Y)
-				{
-					if (board[moveFrom.X, j] != null)
-						return ChessStatus.INVALID_BLOCK;
-
-					j += dY;
-				}
-			}
-
-			// Horizontal Move
-			else if(dY == 0)
-			{
-				int i = moveFrom.X + dX;
-				while(i != moveTo.X)
-				{
-					if (board[i, moveFrom.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-
-					i += dX;
-				}
-			}
-
-			// Diagonal Move
-			else
-			{
-				int i = moveFrom.X + dX;
-				int j = moveFrom.Y + dY;
-				while(i != moveTo.X)
-				{
-					if (board[i, j] != null)
-						return ChessStatus.INVALID_BLOCK;
-
-					i += dX; j += dY; 
-				}
-			}
-
-			return ChessStatus.VALID;
-		}
-		private StatusFlag IsValidMove(King king)
-		{
-			int dX = Math.Abs(moveTo.X - moveFrom.X);
-			int dY = Math.Abs(moveTo.Y - moveFrom.Y);
-
-			if (dY > 1 || dX > 2)
-				return ChessStatus.INVALID_MOVE;
-
-			if (dX == 2)
-			{
-				StatusFlag status = Castle();
-				if (status != ChessStatus.VALID)
-					return status;
-			}
-	
-			return ChessStatus.VALID;
-		}
-		private StatusFlag IsValidMove(Knight knight)
-		{
-			int dX = Math.Abs(moveTo.X - moveFrom.X);
-			int dY = Math.Abs(moveTo.Y - moveFrom.Y);
-
-			if (dY * dX != 2)
-				return ChessStatus.INVALID_MOVE;
-
-			return ChessStatus.VALID;
-		}
-		private StatusFlag IsValidMove(Bishop bishop)
-		{
-			int dX = Math.Abs(moveTo.X - moveFrom.X);
-			int dY = Math.Abs(moveTo.Y - moveFrom.Y);
-
-			if (dY != dX)
-				return ChessStatus.INVALID_MOVE;
-
-			dX = dX / (moveTo.X - moveFrom.X);
-			dY = dY / (moveTo.Y - moveFrom.Y);
-
-			// Check if pieces are in the way
-			int i = moveFrom.X + dX;
-			int j = moveFrom.Y + dY;
-			while(i != moveTo.X)
-			{
-				if (board[i, j] != null)
-					return ChessStatus.INVALID_BLOCK;
-
-				i += dX; j += dY; 
-			}
-
-			return ChessStatus.VALID;
-		}
-		
-		
-		private void ForceMove(Position from, Position to)
-		{
-			board[to.X, to.Y] = board[from.X, from.Y];
-			if (!from.Equals(to))
-				board[from.X, from.Y] = null;
-		}
-		
 		
 		private bool IsCheck()
 		{
 			ArrayList FromSet = new ArrayList(16);
 
-			checkBoard = new Game(this);
+			checkBoard = new ChessGame(this);
 			checkBoard.ToggleTurn();
 			checkBoard.ForceMove(moveFrom, moveTo);
 
@@ -436,12 +324,12 @@ namespace Chess
 				for (int j = 0; j < 8; j++)
 				{
 					if (checkBoard[i, j] != null && checkBoard[i, j].Color != turn)
-						FromSet.Add(new Position(i, j)); 
+						FromSet.Add(new Point(i, j)); 
 					else if (checkBoard[i, j] != null && checkBoard[i, j].Name == "King")
-						checkBoard.moveTo = new Position(i, j);
+						checkBoard.moveTo = new Point(i, j);
 				}
 
-			foreach (Position pos in FromSet)
+			foreach (Point pos in FromSet)
 			{
 				checkBoard.moveFrom = pos;
 				if (checkBoard.IsValidMove() == ChessStatus.VALID)
@@ -529,178 +417,33 @@ namespace Chess
 			if (board[4 + inc, Y] != null)
 				return ChessStatus.INVALID_BLOCK;
 			
-			checkBoard = new Game(this);
-			checkBoard.moveFrom = new Position(rook, Y);
-			checkBoard.moveTo = new Position(moveFrom.X + inc, Y);
+			checkBoard = new ChessGame(this);
+			checkBoard.moveFrom = new Point(rook, Y);
+			checkBoard.moveTo = new Point(moveFrom.X + inc, Y);
 			if (checkBoard.IsValidMove() == ChessStatus.INVALID_BLOCK)
 				return ChessStatus.INVALID_BLOCK;
 
-			Position tempMoveTo = new Position(moveTo);
+			Point tempMoveTo = new Point(moveTo);
 
 			int i;
 			for (i = moveFrom.X; i!= tempMoveTo.X; i += inc)
 			{
-				moveTo = new Position(i, Y);
+				moveTo = new Point(i, Y);
 				if (IsCheck())
 					return ChessStatus.INVALID_CASTLE;
 			}
 
 			// last iteration
-			moveTo = new Position(i, Y);
+			moveTo = new Point(i, Y);
 			if (IsCheck())
 				return ChessStatus.INVALID_CASTLE;
 
-			moveTo = new Position(tempMoveTo); 
-			ForceMove(new Position(rook, Y), new Position(moveTo.X - inc, Y));
+			moveTo = new Point(tempMoveTo); 
+			ForceMove(new Point(rook, Y), new Point(moveTo.X - inc, Y));
 			return ChessStatus.VALID;
 		}
 
-
-	}
-
-	
-	public abstract class ChessPiece
-	{
-		protected string name;
-		protected string color;
-
-		public string Name
-		{
-			get
-			{
-				return name;
-			}
-		}
-		public string Color
-		{
-			get
-			{
-				return color;
-			}
-		}
-	}
-
-	
-	class Pawn : ChessPiece
-	{
-		public Pawn(string color)
-		{
-			name = "Pawn";
-			this.color = color;
-		}
-	}
-
-
-	class Knight : ChessPiece
-	{
-		public Knight(string color)
-		{
-			name = "Knight";
-			this.color = color;
-		}
-	}
-
-	
-	class Rook : ChessPiece
-	{
-		public Rook(string color)
-		{
-			name = "Rook";
-			this.color = color;
-		}
-	}
-
-	
-	class Bishop : ChessPiece
-	{
-		public Bishop(string color)
-		{
-			name = "Bishop";
-			this.color = color;
-		}
-	}
-
-	
-	class Queen : ChessPiece
-	{
-		public Queen(string color)
-		{
-			name = "Queen";
-			this.color = color;
-		}
-	}
-	
-	
-	class King : ChessPiece
-	{
-		public King(string color)
-		{
-			name = "King";
-			this.color = color;
-		}
-	}
-
-	
-	public class Position
-	{
-		internal int X;
-		internal int Y;
-
-		public Position()
-		{}
-
-		public Position(int x, int y)
-		{
-			X = x;
-			Y = y;
-		}
-		public Position(Position P)
-		{
-			X = P.X;
-			Y = P.Y;
-		}
-		
-		public bool Equals(Position P)
-		{
-			if (X == P.X && Y == P.Y)
-				return true;
-			else
-				return false;
-		}
-		public bool Equals(int x, int y)
-		{
-			return Equals(new Position(x, y));
-		}
-
-	}
-
-	
-	public class StatusFlag
-	{
-		public readonly string Text;
-
-		internal StatusFlag (string text)
-		{
-			Text = text;
-		}
-	}
-
-	
-	public class ChessStatus
-	{
-		public static StatusFlag VALID = new StatusFlag("");
-
-		public static StatusFlag INVALID_PIECE = new StatusFlag("You are attempting to move an invalid piece");
-
-		public static StatusFlag OPPONENTS_PIECE = new StatusFlag("You are attempting to move a piece of the wrong color");
-
-		public static StatusFlag INVALID_MOVE = new StatusFlag("The piece you are attempting to move does not move in that manner");
-
-		public static StatusFlag INVALID_BLOCK = new StatusFlag("There is a piece blocking that move");
-
-		public static StatusFlag INVALID_CHECK = new StatusFlag("That move would leave your king in check");
-
-		public static StatusFlag INVALID_CASTLE = new StatusFlag("You can not castle now");
+*/
 	}
 
 

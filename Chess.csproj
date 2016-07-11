@@ -100,6 +100,8 @@
     <Compile Include="Chess.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ChessMove.cs" />
+    <Compile Include="ChessPiece.cs" />
     <Compile Include="PromotePawn.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -107,6 +109,56 @@
       <SubType>Form</SubType>
     </Compile>
     <Content Include="App.ico" />
+    <EmbeddedResource Include="res\Black.bmp" />
+    <EmbeddedResource Include="res\BlackBishopBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackBishopBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackBishopWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackBishopWhite2.bmp" />
+    <EmbeddedResource Include="res\BlackKingBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackKingBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackKingWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackKingWhite2.bmp" />
+    <EmbeddedResource Include="res\BlackKnightBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackKnightBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackKnightWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackKnightWhite2.bmp" />
+    <EmbeddedResource Include="res\BlackPawnBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackPawnBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackPawnWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackPawnWhite2.bmp" />
+    <EmbeddedResource Include="res\BlackQueenBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackQueenBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackQueenWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackQueenWhite2.bmp" />
+    <EmbeddedResource Include="res\BlackRookBlack1.bmp" />
+    <EmbeddedResource Include="res\BlackRookBlack2.bmp" />
+    <EmbeddedResource Include="res\BlackRookWhite1.bmp" />
+    <EmbeddedResource Include="res\BlackRookWhite2.bmp" />
+    <EmbeddedResource Include="res\White.bmp" />
+    <EmbeddedResource Include="res\WhiteBishopBlack1.bmp" />
+    <EmbeddedResource Include="res\WhiteBishopBlack2.bmp" />
+    <EmbeddedResource Include="res\WhiteBishopWhite1.bmp" />
+    <EmbeddedResource Include="res\WhiteBishopWhite2.bmp" />
+    <EmbeddedResource Include="res\WhiteKingBlack1.bmp" />
+    <EmbeddedResource Include="res\WhiteKingBlack2.bmp" />
+    <EmbeddedResource Include="res\WhiteKingWhite1.bmp" />
+    <EmbeddedResource Include="res\WhiteKingWhite2.bmp" />
+    <EmbeddedResource Include="res\WhiteKnightBlack1.bmp" />
+    <EmbeddedResource Include="res\WhiteKnightBlack2.bmp" />
+    <EmbeddedResource Include="res\WhiteKnightWhite1.bmp" />
+    <EmbeddedResource Include="res\WhiteKnightWhite2.bmp" />
+    <EmbeddedResource Include="res\WhitePawnBlack1.bmp" />
+    <EmbeddedResource Include="res\WhitePawnBlack2.bmp" />
+    <EmbeddedResource Include="res\WhitePawnWhite1.bmp" />
+    <EmbeddedResource Include="res\WhitePawnWhite2.bmp" />
+    <EmbeddedResource Include="res\WhiteQueenBlack1.bmp" />
+    <EmbeddedResource Include="res\WhiteQueenBlack2.bmp" />
+    <EmbeddedResource Include="res\WhiteQueenWhite1.bmp" />
+    <EmbeddedResource Include="res\WhiteQueenWhite2.bmp" />
+    <EmbeddedResource Include="res\WhiteRookBlack1.bmp" />
+    <EmbeddedResource Include="res\WhiteRookBlack2.bmp" />
+    <EmbeddedResource Include="res\WhiteRookWhite1.bmp" />
+    <EmbeddedResource Include="res\WhiteRookWhite2.bmp" />
     <EmbeddedResource Include="PromotePawn.resx">
       <DependentUpon>PromotePawn.cs</DependentUpon>
     </EmbeddedResource>
