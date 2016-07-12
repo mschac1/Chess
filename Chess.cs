@@ -9,7 +9,7 @@ namespace Chess
 {
 
 	// The delegate type used to find out what piece to promote pawns to
-	public delegate ChessPiece PawnCallback();
+	public delegate Rank PawnCallback();
 
 	public class ChessGame {
 		#region Variables
@@ -25,29 +25,60 @@ namespace Chess
 			get {return board[pos.X, pos.Y];}
 			set {board[pos.X, pos.Y] = value;}
 		}
-
-
-
-		// Castle status flags
-		internal bool whiteLeftCastle;
-        internal bool whiteRightCastle;
-        internal bool blackLeftCastle;
-        internal bool blackRightCastle;
-
 	
         Stack<ChessMove> moveStack = new Stack<ChessMove>();
+
 		// The delegate used to find out what piece to promote pawns to
 		public PawnCallback pawnPromoter;
 
         public string Status { get; private set; }
         public Color Turn { get; private set; }
         public bool GameOver { get; private set; }
+
+        internal int LEFT = 0, RIGHT = 1;
         #endregion
 
         public ChessGame() {
 			newGame();
 		}
 
+
+        public void newGame() {
+            Turn = WHITE;
+
+            GameOver = false;
+
+            moveStack.Clear();
+
+            // Reset the board
+            board[0, 0] = new ChessPiece(ROOK, BLACK);
+            board[1, 0] = new ChessPiece(KNIGHT, BLACK);
+            board[2, 0] = new ChessPiece(BISHOP, BLACK);
+            board[3, 0] = new ChessPiece(QUEEN, BLACK);
+            board[4, 0] = new ChessPiece(KING, BLACK);
+            board[5, 0] = new ChessPiece(BISHOP, BLACK);
+            board[6, 0] = new ChessPiece(KNIGHT, BLACK);
+            board[7, 0] = new ChessPiece(ROOK, BLACK);
+
+            for (int i = 0; i < 8; i++)
+                board[i, 1] = new ChessPiece(PAWN, BLACK);
+
+            for (int i = 2; i < 6; i++)
+                for (int j = 0; j < 8; j++)
+                    board[j, i] = null;
+
+            for (int i = 0; i < 8; i++)
+                board[i, 6] = new ChessPiece(PAWN, WHITE);
+
+            board[0, 7] = new ChessPiece(ROOK, WHITE);
+            board[1, 7] = new ChessPiece(KNIGHT, WHITE);
+            board[2, 7] = new ChessPiece(BISHOP, WHITE);
+            board[3, 7] = new ChessPiece(QUEEN, WHITE);
+            board[4, 7] = new ChessPiece(KING, WHITE);
+            board[5, 7] = new ChessPiece(BISHOP, WHITE);
+            board[6, 7] = new ChessPiece(KNIGHT, WHITE);
+            board[7, 7] = new ChessPiece(ROOK, WHITE);
+        }
         public bool MovePiece(Point from, Point to) {
 
             // Check if the game is over
@@ -90,36 +121,153 @@ namespace Chess
             makeMove(move);
 
             // Check whether the move would place the player in check
-            if (IsCheck()) {
-                Status = "That movewould put your king in check";
+            if (IsCheck(piece.Color)) {
+                Status = "That move would put your king in check";
                 ReverseMove();
                 return false;
             }
+
+            int oppositeSide = (this[move.To].Color == BLACK ? 7 : 0);
+            if (this[move.To].Rank == PAWN && move.To.Y == oppositeSide) {
+                this[move.To].Rank = pawnPromoter();
+                move.Promotion = true;
+            }
+
 
             // TODO check for checkmate, and stalemate
 
             // TODO Uncomment this ToggleTurn();
 
-            //TODO check for check
+            // Find opponents King
+            Point kingSquare = FindKing(Toggle(piece.Color));
+            if (IsThreatened(kingSquare, piece.Color))
+                Status = "Check!";
 
             return true;
 		}
 
-        private void ReverseMove() {
-            throw new NotImplementedException();
+        private Point FindKing(Color color) {
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    if (this[i, j] != null && this[i, j].Rank == KING && this[i, j].Color == color)
+                        return new Point(i, j);
+                }
+            }
+            throw new Exception("No " + color + " King found on the board!");
+        }
+
+        private static Color Toggle(Color color) {
+            return (color == BLACK ? WHITE : BLACK);
+        }
+
+        // Reverse the previous move
+        public void ReverseMove() {
+            if (moveStack.Count == 0)
+                return;
+
+            ChessMove move = moveStack.Pop();
+
+            // Move Piece back
+            this[move.From] = this[move.To];
+            this[move.To] = move.Opponent;
+
+            // Unpromote pawn
+            if (move.Promotion)
+                this[move.From].Rank = PAWN;
+
+            // Uncastle
+            int dX = move.From.X - move.To.X;
+            if (this[move.From].Rank == KING && Math.Abs(dX) == 2) {
+                // If king moved left, move the left rook back
+                if (dX == 2) {
+                    this[new Point(0, move.To.Y)] = this[new Point(3, move.To.Y)];
+                    this[new Point(3, move.To.Y)] = null;
+                }
+                // If king moved right , move the right rook back
+                else if (dX == -2) {
+                    this[new Point(7, move.To.Y)] = this[new Point(5, move.To.Y)];
+                    this[new Point(5, move.To.Y)] = null;
+                }
+            }
+                
         }
 
         private void makeMove(ChessMove move) {
             this[move.To] = this[move.From];
             this[move.From] = null;
 
-            // TODO en Passant and castle
+            if (move.EnPassant)
+                this[new Point(move.To.X, move.From.Y)] = null;
+
+            ProcessCastleStatus(move);
+
             moveStack.Push(move);
         }
 
-        private bool IsCheck() {
+        private void ProcessCastleStatus(ChessMove move) {
+            // Fill in the move with the castle status as of the previous move (or all true if it's the first move)
+            if (moveStack.Count == 0) {
+                move.CastleStatus = new bool[,] { { true, true }, { true, true } };
+            }
+            else {
+                ChessMove pMove = moveStack.Peek();
+                for (int i = 0; i < 2; i++) {
+                    for (int j = 0; j < 2; j++) {
+                        move.CastleStatus[i, j] = pMove.CastleStatus[i, j];
+                    }
+                }
+            }
+
+            Rank rank = this[move.To].Rank;
+            Color color = this[move.To].Color;
+
+            // Move rook, if castleing
+            int dX = move.To.X - move.From.X;
+            if (rank == KING) {
+                // If king moves left, left rook moves right
+                if (dX == -2) {
+                    this[new Point(3, move.To.Y)] = this[new Point(0, move.To.Y)];
+                    this[new Point(0, move.To.Y)] = null;
+                }
+                // If king moves right , right rook moves left
+                else if (dX == 2) {
+                    this[new Point(5, move.To.Y)] = this[new Point(7, move.To.Y)];
+                    this[new Point(7, move.To.Y)] = null;
+                }
+
+            }
+
+            int homeRow = (color == WHITE ? 7 : 0);
+            // If the king moves, set both of that color's castle flags to false
+            if (rank == KING) {
+                move.CastleStatus[(int) color, LEFT] = move.CastleStatus[(int) color, RIGHT] = false;
+            }
+            else if(rank == ROOK && move.From.Y == homeRow && (move.From.X == 0 || move.From.X == 7)) {
+                int side = (move.From.X == 0 ? LEFT : RIGHT);
+                move.CastleStatus[(int)color, side] = false;
+            }
+
+            // Castle status can also be affected if the a Rook is captured (otherwise one rook could move around to the other side
+            // after the other rook has been taken and the game would think you could castle because a rook never moved from that spot
+            int opponentRow = (color == WHITE ? 0 : 7);
+            
+            if (move.Opponent != null && move.Opponent.Rank == ROOK && move.To.Y == opponentRow && (move.To.X == 0 || move.To.X == 7)) {
+                int side = (move.To.X == 0 ? LEFT : RIGHT);
+                move.CastleStatus[(int) move.Opponent.Color, side] = false;
+            } 
+        }
+
+        // Is the King of Color <color> in Check
+        private bool IsCheck(Color color) {
+            Point kingSquare = FindKing(color);
+            Color opponentColor = Toggle(color);
+            return IsThreatened(kingSquare, opponentColor);
+        }
+
+        // TODO is the <square> threatened by any <color> piece
+        private bool IsThreatened(Point square, Color color) {
+            
             return false;
-            //TODO implement this
         }
 
         private ChessMove AttemptMove(Point from, Point to) {
@@ -175,14 +323,54 @@ namespace Chess
 
             // Move 1 square forward
             int allowedDirection = (piece.Color == BLACK ? 1 : -1);
-            if (dX == 0 && dY == allowedDirection && move.opponent == null)
+            if (dX == 0 && dY == allowedDirection && move.Opponent == null)
                 return move;
 
+            // Move 2 squares forward
+            int homeRow = (piece.Color == BLACK ? 1 : 6);
+            if (dX == 0 && move.From.Y == homeRow && dY == allowedDirection * 2 && move.Opponent == null)
+                return move;
+
+
+            // Check attack
+            if (dX == 1 && dY == allowedDirection) {
+                if (move.Opponent != null)
+                    return move;
+                else
+                    return AttemptEnPassant(move);
+                    return null;
+            }
+            return null;
+        }
+
+        private ChessMove AttemptEnPassant(ChessMove move) {
+            ChessMove pMove = moveStack.Peek();
+            
+            if (this[pMove.To].Rank == PAWN && Math.Abs(pMove.To.Y - pMove.From.Y) == 2 && pMove.To.X == move.To.X) {
+                move.EnPassant = true;
+                return move;
+            }
             return null;
         }
 
         private bool IsCastleAllowed(Point from, Point to) {
-            throw new NotImplementedException();
+            // Check castle flag
+            Color color = this[from].Color;
+            int side = (to.X == 2 ? LEFT : RIGHT);
+            if (!moveStack.Peek().CastleStatus[(int)color, side])
+                return false;
+
+            // Check whether there are any pieces in between
+            int rookColumn = (side == LEFT ? 0 : 7);
+            if (IsPieceBetween(from, new Point(rookColumn, from.Y)))
+                return false;
+
+            // TODO Check wether any of the spaces between the king and where it is moving are in check
+            // We don't need to check the space wherer the king is moving to because that will be checked at the IsCheck stage
+            if (IsCheck(color))
+                return false;
+
+            return true;
         }
 
         private bool IsPieceBetween(Point from, Point to) {
@@ -206,244 +394,12 @@ namespace Chess
             return (from.X >= 0 && from.X <= 7 && from.Y >= 0 && from.Y > 7);
         }
 
-        public void newGame() {
-            Turn = WHITE;
-
-            GameOver = false;
-
-			// Reset castle flags
-			whiteLeftCastle = true;
-			whiteRightCastle = true;
-			blackLeftCastle = true;
-			blackRightCastle = true;
-
-            moveStack.Clear();
-
-            // Reset the board
-            board[0, 0] = new ChessPiece(ROOK, BLACK);
-            board[1, 0] = new ChessPiece(KNIGHT, BLACK);
-            board[2, 0] = new ChessPiece(BISHOP, BLACK);
-            board[3, 0] = new ChessPiece(QUEEN, BLACK);
-            board[4, 0] = new ChessPiece(KING, BLACK);
-            board[5, 0] = new ChessPiece(BISHOP, BLACK);
-            board[6, 0] = new ChessPiece(KNIGHT, BLACK);
-            board[7, 0] = new ChessPiece(ROOK, BLACK);
-
-            for (int i = 0; i < 8; i++)
-                board[i, 1] = new ChessPiece(PAWN, BLACK);
-
-            for (int i = 2; i < 6; i++)
-                for (int j = 0; j < 8; j++)
-                    board[j, i] = null;
-
-            for (int i = 0; i < 8; i++)
-                board[i, 6] = new ChessPiece(PAWN, WHITE);
-
-            board[0, 7] = new ChessPiece(ROOK, WHITE);
-            board[1, 7] = new ChessPiece(KNIGHT, WHITE);
-            board[2, 7] = new ChessPiece(BISHOP, WHITE);
-            board[3, 7] = new ChessPiece(QUEEN, WHITE);
-            board[4, 7] = new ChessPiece(KING, WHITE);
-            board[5, 7] = new ChessPiece(BISHOP, WHITE);
-            board[6, 7] = new ChessPiece(KNIGHT, WHITE);
-            board[7, 7] = new ChessPiece(ROOK, WHITE);
-        }
 		
 		
-		private void ToggleTurn()
-		{
-            if (Turn == WHITE)
-                Turn = BLACK;
-            else
-                Turn = WHITE;
-
+		private void ToggleTurn() {
+            Turn = Toggle(Turn);
 		}
 		
-				
-/*		
-
-		private StatusFlag IsValidMove(Pawn pawn)
-		{
-			if (turn.Equals("White"))
-			{
-				if (moveFrom.Y <= moveTo.Y || moveFrom.Y > moveTo.Y + 2)
-					return ChessStatus.INVALID_MOVE;
-				if (moveFrom.Y == moveTo.Y + 2)
-				{
-					if (moveFrom.Y != 6 || moveFrom.X != moveTo.X)
-						return ChessStatus.INVALID_MOVE;
-					if (board[moveFrom.X, moveFrom.Y - 1] != null || board[moveTo.X, moveTo.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-				}
-				else
-				{
-					if (Math.Abs(moveFrom.X - moveTo.X) > 1)
-						return ChessStatus.INVALID_MOVE;
-
-					if (moveFrom.X == moveTo.X && board[moveTo.X, moveTo.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-					if (Math.Abs(moveFrom.X - moveTo.X) == 1 && board[moveTo.X, moveTo.Y] == null)
-						return ChessStatus.INVALID_MOVE;
-				}
-			}
-			else
-			{
-				if (moveFrom.Y >= moveTo.Y || moveFrom.Y < moveTo.Y - 2)
-					return ChessStatus.INVALID_MOVE;
-				if (moveFrom.Y == moveTo.Y - 2)
-				{
-					if (moveFrom.Y != 1 || moveFrom.X != moveTo.X)
-						return ChessStatus.INVALID_MOVE;
-					if (board[moveFrom.X, moveFrom.Y + 1] != null || board[moveTo.X, moveTo.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-				}
-				else
-				{
-					if (Math.Abs(moveFrom.X - moveTo.X) > 1)
-						return ChessStatus.INVALID_MOVE;
-
-					if (moveFrom.X == moveTo.X && board[moveTo.X, moveTo.Y] != null)
-						return ChessStatus.INVALID_BLOCK;
-					if (Math.Abs(moveFrom.X - moveTo.X) == 1 && board[moveTo.X, moveTo.Y] == null)
-						return ChessStatus.INVALID_MOVE;
-				}
-			}
-
-			return ChessStatus.VALID;
-		}
-		
-		private bool IsCheck()
-		{
-			ArrayList FromSet = new ArrayList(16);
-
-			checkBoard = new ChessGame(this);
-			checkBoard.ToggleTurn();
-			checkBoard.ForceMove(moveFrom, moveTo);
-
-			for (int i = 0; i < 8; i++)
-				for (int j = 0; j < 8; j++)
-				{
-					if (checkBoard[i, j] != null && checkBoard[i, j].Color != turn)
-						FromSet.Add(new Point(i, j)); 
-					else if (checkBoard[i, j] != null && checkBoard[i, j].Name == "King")
-						checkBoard.moveTo = new Point(i, j);
-				}
-
-			foreach (Point pos in FromSet)
-			{
-				checkBoard.moveFrom = pos;
-				if (checkBoard.IsValidMove() == ChessStatus.VALID)
-					return true;
-			}
-
-			return false;
-		}
-		
-		
-		private void SetCastleFlags()
-		{
-			if (moveFrom.Equals(0, 0))
-				BlackLeftCastle = false;
-			if (moveFrom.Equals(4, 0))
-			{
-				BlackLeftCastle = false;
-				BlackRightCastle = false;
-			}
-			if (moveFrom.Equals(7, 0))
-				BlackRightCastle = false;
-
-			if (moveFrom.Equals(0, 7))
-				WhiteLeftCastle = false;
-			if (moveFrom.Equals(4, 7))
-			{
-				WhiteLeftCastle = false;
-				WhiteRightCastle = false;
-			}
-			if (moveFrom.Equals(7, 7))
-				WhiteRightCastle = false;
-
-		}
-
-
-		private StatusFlag Castle()
-		{
-			int inc;
-			int Y;
-			int rook;
-
-			if (turn.Equals("White"))
-			{
-				Y = 7;
-
-				if (moveFrom.X < moveTo.X) // Castle right
-				{
-					if (WhiteRightCastle == false)
-						return ChessStatus.INVALID_CASTLE;
-					inc = 1;
-					rook = 7;
-				}
-				else // Castle left
-				{
-					if (WhiteLeftCastle == false)
-						return ChessStatus.INVALID_CASTLE;
-					inc = -1;
-					rook = 0;
-				}
-
-			}
-			else // if (turn.Equals("Black"))
-			{
-				Y = 0;
-
-				if (moveFrom.X < moveTo.X) // Castle right
-				{
-					if (BlackRightCastle == false)
-						return ChessStatus.INVALID_CASTLE;
-					inc = 1;
-					rook = 7;
-				}
-				else // Castle left
-				{
-					if (BlackLeftCastle == false)
-						return ChessStatus.INVALID_CASTLE;
-					inc = -1;
-					rook = 0;
-				}
-			}
-
-			if (moveFrom.Y != Y)
-				return ChessStatus.INVALID_MOVE;
-
-			if (board[4 + inc, Y] != null)
-				return ChessStatus.INVALID_BLOCK;
-			
-			checkBoard = new ChessGame(this);
-			checkBoard.moveFrom = new Point(rook, Y);
-			checkBoard.moveTo = new Point(moveFrom.X + inc, Y);
-			if (checkBoard.IsValidMove() == ChessStatus.INVALID_BLOCK)
-				return ChessStatus.INVALID_BLOCK;
-
-			Point tempMoveTo = new Point(moveTo);
-
-			int i;
-			for (i = moveFrom.X; i!= tempMoveTo.X; i += inc)
-			{
-				moveTo = new Point(i, Y);
-				if (IsCheck())
-					return ChessStatus.INVALID_CASTLE;
-			}
-
-			// last iteration
-			moveTo = new Point(i, Y);
-			if (IsCheck())
-				return ChessStatus.INVALID_CASTLE;
-
-			moveTo = new Point(tempMoveTo); 
-			ForceMove(new Point(rook, Y), new Point(moveTo.X - inc, Y));
-			return ChessStatus.VALID;
-		}
-
-*/
 	}
 
 

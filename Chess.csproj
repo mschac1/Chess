@@ -105,7 +105,7 @@
     <Compile Include="PromotePawn.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="V_Chess.cs">
+    <Compile Include="frmChess.cs">
       <SubType>Form</SubType>
     </Compile>
     <Content Include="App.ico" />
@@ -162,8 +162,8 @@
     <EmbeddedResource Include="PromotePawn.resx">
       <DependentUpon>PromotePawn.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="V_Chess.resx">
-      <DependentUpon>V_Chess.cs</DependentUpon>
+    <EmbeddedResource Include="frmChess.resx">
+      <DependentUpon>frmChess.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

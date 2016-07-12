@@ -15,7 +15,7 @@ namespace Chess
 	{
 		public string PromoteTo;
 
-		string direc = @"c:\Menachem\c#\Chess\";
+		// string direc = @"c:\Menachem\c#\Chess\";
 		string fileAppend = "2.bmp";
 		private System.Windows.Forms.Label Knight;
 		private System.Windows.Forms.Label Bishop;
@@ -33,9 +33,6 @@ namespace Chess
 			//
 			InitializeComponent();
 
-			//
-			// TODO: Add any constructor code after InitializeComponent call
-			//
 		}
 
 		/// <summary>
@@ -134,18 +131,24 @@ namespace Chess
 			PromoteTo = ((System.Windows.Forms.Label) sender).Name;
 			DialogResult = DialogResult.OK;
 		}
-		public void LoadPieces (string Color)
-		{
 
-			Knight.Image = Image.FromFile(Color + "Knight" + "Black" + fileAppend);
-			Bishop.Image = Image.FromFile(Color + "Bishop" + "Black" + fileAppend);
-			Rook.Image = Image.FromFile(Color + "Rook" + "Black" + fileAppend);
-			Queen.Image = Image.FromFile(Color + "Queen" + "Black" + fileAppend);;
+        internal static Image GetImage(String fileName) {
+            System.Reflection.Assembly myAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+            Stream myStream = myAssembly.GetManifestResourceStream("Chess.res." + fileName);
+            return System.Drawing.Image.FromStream(myStream);
+        }
+		public void LoadPieces (string color)
+		{
+            color = color.Substring(0, 1) + color.Substring(1).ToLower();
+            Knight.Image = GetImage(color + "Knight" + "Black" + fileAppend);
+			Bishop.Image = GetImage(color + "Bishop" + "Black" + fileAppend);
+			Rook.Image = GetImage(color + "Rook" + "Black" + fileAppend);
+			Queen.Image = GetImage(color + "Queen" + "Black" + fileAppend);;
 		}
 
 		private void frmPromotePawn_Load(object sender, System.EventArgs e)
 		{
-			Directory.SetCurrentDirectory(direc);
+			// Directory.SetCurrentDirectory(direc);
 		}
 	}
 }

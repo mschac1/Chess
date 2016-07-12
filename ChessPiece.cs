@@ -1,20 +1,13 @@
 namespace Chess {
 	public class ChessPiece {
-		protected Color color;
-		protected Rank rank;
 
 		public ChessPiece(Rank rank, Color color) {
-			this.rank = rank;
-			this.color = color;
+			Rank = rank;
+			Color = color;
 		}
 		
-		public Color Color {
-			get {return color;}
-		}
-		public Rank Rank {
-			get {return rank;} 
-		}
-	
+		public Color Color { get; internal set; }
+        public Rank Rank { get; internal set; }	
 	}
 	
 	public enum Color {WHITE, BLACK};

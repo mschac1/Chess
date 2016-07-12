@@ -4,16 +4,15 @@ namespace Chess {
 	internal class ChessMove {
         internal Point To;
         internal Point From;
-        internal ChessPiece opponent;
-		internal Rank? Promotion = null;
+        internal ChessPiece Opponent;
+		internal bool Promotion;
         internal bool EnPassant;
-        internal bool CastleStatusChangedLeft;
-        internal bool CastleStatusChangedRight;
+        internal bool[,] CastleStatus = new bool[2,2];
 
         internal ChessMove(Point from, Point to, ChessPiece opponent) {
 			From = from;
 			To = to;
-			this.opponent = opponent;
+			Opponent = opponent;
 		}
 		
 	}
