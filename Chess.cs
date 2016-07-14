@@ -1,20 +1,22 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using static Chess.Color;
 using static Chess.Rank;
 
-namespace Chess
-{
+namespace Chess {
 
-	// The delegate type used to find out what piece to promote pawns to
-	public delegate Rank PawnCallback();
+
+
+    // The delegate type used to find out what piece to promote pawns to
+    public delegate Rank PawnCallback();
 
 	public class ChessGame {
-		#region Variables
+        #region Variables
 
-		private  ChessPiece [ , ] board = new ChessPiece[8, 8];
+        private static bool TESTING = true;
+
+        private  ChessPiece [ , ] board = new ChessPiece[8, 8];
 
 		// Indexers used to get chess pieces
 		public  ChessPiece this [int i, int j] {
@@ -86,7 +88,7 @@ namespace Chess
                 return false;
 
             // Check whether the coordinates are invalid
-            if (IsInvalidSquare(from) || IsInvalidSquare(to)) {
+            if (!IsValidSquare(from) || !IsValidSquare(to)) {
                 Status = "Invalid coordinate";
                 return false;
             }
@@ -98,16 +100,10 @@ namespace Chess
                 Status = "There is no piece at that location";
                 return false;
             }
-/*TODO UNCOMMENT THIS
+
             // Check whether the piece being moved is of the same color as the turn
-            if (piece.Color != Turn) {
+            if (!TESTING && piece.Color != Turn) {
                 Status = "You are attemptint to move your opponent's piece";
-                return false;
-            }
-*/
-            // If the piece is being moved onto a square occupied by another piece of the same color
-            if (this[to] != null && this[to].Color == this[from].Color) {
-                Status = "Invalid Move";
                 return false;
             }
 
@@ -122,29 +118,74 @@ namespace Chess
 
             // Check whether the move would place the player in check
             if (IsCheck(piece.Color)) {
-                Status = "That move would put your king in check";
                 ReverseMove();
+                Status = "That move would put your king in check";
                 return false;
             }
 
-            int oppositeSide = (this[move.To].Color == BLACK ? 7 : 0);
-            if (this[move.To].Rank == PAWN && move.To.Y == oppositeSide) {
+            if (move.Promotion)
                 this[move.To].Rank = pawnPromoter();
-                move.Promotion = true;
-            }
 
+            UpdateCheckAndMateStatus(move);
 
-            // TODO check for checkmate, and stalemate
-
-            // TODO Uncomment this ToggleTurn();
-
-            // Find opponents King
-            Point kingSquare = FindKing(Toggle(piece.Color));
-            if (IsThreatened(kingSquare, piece.Color))
-                Status = "Check!";
+            if (!GameOver)
+                ToggleTurn();
 
             return true;
 		}
+
+        // Check for checkmate, and stalemate
+        private void UpdateCheckAndMateStatus(ChessMove move) {
+            bool isCheck = false;
+            bool avaliableMoves = false;
+            Color color = this[move.To].Color;
+
+            // Find opponents King
+            Point kingSquare = FindKing(Toggle(color));
+            if (IsThreatened(kingSquare))
+                isCheck = true;
+
+            // Find adjacent squares to king and see which ones are avaliable to move to (empty or occupied by opponent)
+            // Then move the king there and see if it is in check. If there are no avaliable moves then avaliableMoves = true
+
+            ChessMove escapeMove = null;
+
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    // if i and j = 0, then that's where the king is now
+                    if (i != 0 || j != 0) {
+                        Point escapeTo = new Point(kingSquare.X + i, kingSquare.Y + j);
+                        if (IsValidSquare(escapeTo) && (escapeMove = AttemptMove(kingSquare, escapeTo)) != null) {
+                            if (!IsCheckAfterMove(kingSquare, escapeTo, escapeTo))
+                                avaliableMoves = true;
+/*
+                            makeMove(escapeMove);
+                            if (IsThreatened(escapeTo))
+                                avaliableMoves = false;
+                            ReverseMove(); // Move the king back
+*/
+                        }
+                    }
+                }
+            }
+ 
+            // TODO The above code checks for checkmate and stalemate as far as the king is concerened; however checkmate also
+            // needs to see if the opponent can move any other piece to break the check, and stalemate needs to see if any other moves are avaliable
+            if (isCheck) {
+                if (!avaliableMoves) {
+                    Status = "CheckMate!";
+                       GameOver = true;
+                }
+                else
+                    Status = "Check!";
+            }
+            else if (!avaliableMoves) {
+                //Status = "Stalemate!";
+                //GameOver = true;
+            }
+            else
+                Status = "";
+        }
 
         private Point FindKing(Color color) {
             for (int i = 0; i < 8; i++) {
@@ -189,6 +230,8 @@ namespace Chess
                     this[new Point(5, move.To.Y)] = null;
                 }
             }
+            GameOver = false;
+            Status = "";
                 
         }
 
@@ -264,8 +307,26 @@ namespace Chess
             return IsThreatened(kingSquare, opponentColor);
         }
 
-        // TODO is the <square> threatened by any <color> piece
+        private bool IsThreatened(Point square) {
+            return IsThreatened(square, Toggle(this[square].Color));
+        }
+
+        // Is the <square> threatened by any <color> piece
         private bool IsThreatened(Point square, Color color) {
+            List<Point> opposingPieces = new List<Point>();
+
+            // Assemble a list of opposing pieces
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    Point p = new Point(i, j);
+                    if (this[p] != null && this[p].Color == color)
+                        opposingPieces.Add(p);
+                }
+            }
+            foreach (Point p in opposingPieces) {
+                if (AttemptMove(p, square) != null)
+                    return true;
+            }
             
             return false;
         }
@@ -276,6 +337,10 @@ namespace Chess
             int dX = Math.Abs(from.X - to.X);
             int dY = Math.Abs(from.Y - to.Y);
 
+            // If the piece is being moved onto a square occupied by another piece of the same color
+            if (this[to] != null && this[to].Color == this[from].Color) {
+                return null;
+            }
             switch (piece.Rank) {
                 case KNIGHT:
                     // The knight can move if it is moving 2 in one direction and 1 in the other
@@ -310,7 +375,12 @@ namespace Chess
                     return null;
 
                 case PAWN:
-                    return AttemptMovePawn(move);
+                    move = AttemptMovePawn(move);
+                    int oppositeSide = (this[from].Color == BLACK ? 7 : 0);
+                    if (move != null && to.Y == oppositeSide) {
+                        move.Promotion = true;
+                    }
+                    return move;
             }
 
             return move;
@@ -338,7 +408,6 @@ namespace Chess
                     return move;
                 else
                     return AttemptEnPassant(move);
-                    return null;
             }
             return null;
         }
@@ -365,12 +434,38 @@ namespace Chess
             if (IsPieceBetween(from, new Point(rookColumn, from.Y)))
                 return false;
 
-            // TODO Check wether any of the spaces between the king and where it is moving are in check
-            // We don't need to check the space wherer the king is moving to because that will be checked at the IsCheck stage
+            // Check wether the king is moving out of check            
             if (IsCheck(color))
                 return false;
 
+            // Check if the king is moving through check
+            // We need to actually move the king and then see if it's in check
+            Point midpoint = new Point((from.X + to.X) / 2, from.Y);
+
+            if (IsCheckAfterMove(from, midpoint, midpoint))
+                return false;
+/*
+            makeMove(AttemptMove(from, midpoint));
+            bool movesThroughCheck = IsThreatened(midpoint);
+            ReverseMove();
+            if (movesThroughCheck)
+                return false;
+*/
+            // We don't need to check the space where the king is moving to because that will be checked at the IsCheck stage
             return true;
+        }
+
+        private bool IsCheckAfterMove(Point from, Point to, Point kingSquare) {
+            ChessMove move = AttemptMove(from, to);
+            // If the move is invalid, then it will not save the player from check
+            if (move == null)
+                return true;
+
+            makeMove(move);
+            bool ischeck = IsThreatened(kingSquare);
+            ReverseMove();
+            return ischeck;
+
         }
 
         private bool IsPieceBetween(Point from, Point to) {
@@ -390,12 +485,10 @@ namespace Chess
             return false;
         }
 
-        private bool IsInvalidSquare(Point from) {
-            return (from.X >= 0 && from.X <= 7 && from.Y >= 0 && from.Y > 7);
+        private bool IsValidSquare(Point from) {
+            return (from.X >= 0 && from.X <= 7 && from.Y >= 0 && from.Y <= 7);
         }
-
-		
-		
+	
 		private void ToggleTurn() {
             Turn = Toggle(Turn);
 		}

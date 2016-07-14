@@ -276,8 +276,8 @@ namespace Chess
 			{
 				RefreshBoard();
 			}
-			else
-				lblStatus.Text = game.Status;
+			
+		    lblStatus.Text = game.Status;
 
 		}
 
@@ -304,6 +304,7 @@ namespace Chess
         private void menuUndo_Click(object sender, EventArgs e) {
             game.ReverseMove();
             RefreshBoard();
+            lblStatus.Text = game.Status;
         }
     }
 
