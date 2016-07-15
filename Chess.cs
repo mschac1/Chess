@@ -87,6 +87,8 @@ namespace Chess {
             if (GameOver)
                 return false;
 
+            Status = "";
+
             // Check whether the coordinates are invalid
             if (!IsValidSquare(from) || !IsValidSquare(to)) {
                 Status = "Invalid coordinate";
@@ -136,56 +138,111 @@ namespace Chess {
 
         // Check for checkmate, and stalemate
         private void UpdateCheckAndMateStatus(ChessMove move) {
-            bool isCheck = false;
-            bool avaliableMoves = false;
-            Color color = this[move.To].Color;
 
-            // Find opponents King
-            Point kingSquare = FindKing(Toggle(color));
-            if (IsThreatened(kingSquare))
-                isCheck = true;
+            Color opponentColor = Toggle(this[move.To].Color);
 
-            // Find adjacent squares to king and see which ones are avaliable to move to (empty or occupied by opponent)
-            // Then move the king there and see if it is in check. If there are no avaliable moves then avaliableMoves = true
+            bool isCheck = IsCheck(opponentColor);
+            bool avaliableMoves = IsAvaliableMove(opponentColor);
 
-            ChessMove escapeMove = null;
+            if (!avaliableMoves) {
+                GameOver = true;
+                if (isCheck)
+                    Status = "CheckMate!";
+                else
+                    Status = "Stalemate!";
+            }
+            else if (isCheck) {
+                Status = "Check";
+            }
+        }
 
-            for (int i = -1; i <= 1; i++) {
-                for (int j = -1; j <= 1; j++) {
-                    // if i and j = 0, then that's where the king is now
-                    if (i != 0 || j != 0) {
-                        Point escapeTo = new Point(kingSquare.X + i, kingSquare.Y + j);
-                        if (IsValidSquare(escapeTo) && (escapeMove = AttemptMove(kingSquare, escapeTo)) != null) {
-                            if (!IsCheckAfterMove(kingSquare, escapeTo, escapeTo))
-                                avaliableMoves = true;
-/*
-                            makeMove(escapeMove);
-                            if (IsThreatened(escapeTo))
-                                avaliableMoves = false;
-                            ReverseMove(); // Move the king back
-*/
+        // We need to search the board for all of the opponents pieces, and collect all of the possible moves that they can
+        // make. If any of those moves result in a nonCheck situation, then there are avaliable moves (which means it can't
+        // be checkmate or stalemate. 
+        private bool IsAvaliableMove(Color color) {
+            Point kingSquare = FindKing(color);
+
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    Point from = new Point(i, j);
+                    if (this[from] != null && this[from].Color == color) {
+                        foreach (Point to in GetPossibleMoves(from)) {
+                            if (!IsCheckAfterMove(from, to, kingSquare))
+                                return true;
                         }
                     }
                 }
             }
- 
-            // TODO The above code checks for checkmate and stalemate as far as the king is concerened; however checkmate also
-            // needs to see if the opponent can move any other piece to break the check, and stalemate needs to see if any other moves are avaliable
-            if (isCheck) {
-                if (!avaliableMoves) {
-                    Status = "CheckMate!";
-                       GameOver = true;
-                }
-                else
-                    Status = "Check!";
-            }
-            else if (!avaliableMoves) {
-                //Status = "Stalemate!";
-                //GameOver = true;
-            }
-            else
-                Status = "";
+            // TODO put this back once GetPossibleMoves is complete
+            return false;
+            // return true;
+            
         }
+        /* TODO Return a list of possible moves for the piece at <square>
+         * This method is only concerened with the set of moves a piece can make theoretically, not actually
+         * For example, for a Rook, all squares in the column and row would be returned even if there are pieces in the way
+         * For a pawn, any legal move that could be made at some point during the game would be returned
+        */ 
+        private List<Point> GetPossibleMoves(Point square) {
+            List<Point> moves = new List<Point>();
+            ChessPiece piece = this[square];
+            if (piece != null) {
+                switch(piece.Rank) {
+                    case ROOK:
+                        for (int i = 0; i < 8; i++) {
+                            moves.Add(new Point(i, square.Y));
+                            moves.Add(new Point(square.X, i));
+                        }
+                        break;
+                    case QUEEN:
+                        for (int i = 0; i < 8; i++) {
+                            moves.Add(new Point(i, square.Y));
+                            moves.Add(new Point(square.X, i));
+                        }
+                        goto case BISHOP;
+                    case BISHOP:
+                        for (int i = 0; i < 8; i++) {
+                            moves.Add(new Point(square.X + i, square.Y + i));
+                            moves.Add(new Point(square.X + i, square.Y - i));
+                            moves.Add(new Point(square.X - i, square.Y + i));
+                            moves.Add(new Point(square.X - i, square.Y - i));
+                        }
+                        break;
+                    case KNIGHT:
+                        moves.Add(new Point(square.X + 2, square.Y + 1));
+                        moves.Add(new Point(square.X + 2, square.Y - 1));
+                        moves.Add(new Point(square.X + 1, square.Y + 2));
+                        moves.Add(new Point(square.X + 1, square.Y - 2));
+                        moves.Add(new Point(square.X - 2, square.Y + 1));
+                        moves.Add(new Point(square.X - 2, square.Y - 1));
+                        moves.Add(new Point(square.X - 1, square.Y + 2));
+                        moves.Add(new Point(square.X - 1, square.Y - 2));
+                        break;
+                    case KING:
+                        for (int i = -1; i <= 1; i++) {
+                            for (int j = -1; j <= 1; j++) {
+                                moves.Add(new Point(square.X + i, square.Y + j));
+                            }
+                        }
+                        break;
+                    case PAWN:
+                        moves.Add(new Point(square.X, square.Y + 2));
+                        moves.Add(new Point(square.X, square.Y + 1));
+                        moves.Add(new Point(square.X, square.Y - 2));
+                        moves.Add(new Point(square.X, square.Y - 1));
+                        moves.Add(new Point(square.X + 1, square.Y + 1));
+                        moves.Add(new Point(square.X + 1, square.Y - 1));
+                        moves.Add(new Point(square.X - 1, square.Y + 1));
+                        moves.Add(new Point(square.X - 1, square.Y - 1));
+                        break;
+
+                }
+            }
+            moves.RemoveAll(IsInvalidSquare);
+            return moves;
+        }
+
+        internal static bool IsInvalidSquare(Point square) { return !IsValidSquare(square); }
 
         private Point FindKing(Color color) {
             for (int i = 0; i < 8; i++) {
@@ -413,6 +470,8 @@ namespace Chess {
         }
 
         private ChessMove AttemptEnPassant(ChessMove move) {
+            if (moveStack.Count == 0)
+                return null;
             ChessMove pMove = moveStack.Peek();
             
             if (this[pMove.To].Rank == PAWN && Math.Abs(pMove.To.Y - pMove.From.Y) == 2 && pMove.To.X == move.To.X) {
@@ -444,13 +503,7 @@ namespace Chess {
 
             if (IsCheckAfterMove(from, midpoint, midpoint))
                 return false;
-/*
-            makeMove(AttemptMove(from, midpoint));
-            bool movesThroughCheck = IsThreatened(midpoint);
-            ReverseMove();
-            if (movesThroughCheck)
-                return false;
-*/
+
             // We don't need to check the space where the king is moving to because that will be checked at the IsCheck stage
             return true;
         }
@@ -462,10 +515,14 @@ namespace Chess {
                 return true;
 
             makeMove(move);
+
+            // If the king moved, update kingSquare
+            if (this[to].Rank == KING)
+                kingSquare = to;
+
             bool ischeck = IsThreatened(kingSquare);
             ReverseMove();
             return ischeck;
-
         }
 
         private bool IsPieceBetween(Point from, Point to) {
@@ -485,16 +542,12 @@ namespace Chess {
             return false;
         }
 
-        private bool IsValidSquare(Point from) {
-            return (from.X >= 0 && from.X <= 7 && from.Y >= 0 && from.Y <= 7);
+        private static bool IsValidSquare(Point square) {
+            return (square.X >= 0 && square.X <= 7 && square.Y >= 0 && square.Y <= 7);
         }
 	
 		private void ToggleTurn() {
             Turn = Toggle(Turn);
-		}
-		
+		}		
 	}
-
-
-
 }

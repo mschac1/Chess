@@ -9,6 +9,7 @@ using System.IO;
 
 namespace Chess
 {
+    // TODO neaten up this file a bit
 	public class frmChess : System.Windows.Forms.Form
 	{
 		#region Variables
@@ -262,13 +263,19 @@ namespace Chess
 				moveFrom = new Point(lbl.X, lbl.Y);
 				moveFlag = true;
 				lblStatus.Text = "Moving: " + game[lbl.X, lbl.Y].Rank;
-			}
+                lbl.BorderColor = System.Drawing.Color.Red;
+                lbl.BorderWidth = 3;
+
+            }
 			else
 			{
 				moveTo = new Point(lbl.X, lbl.Y);
 				moveFlag = false;
 				MovePiece(moveFrom, moveTo);
-			}
+                board[moveFrom.X, moveFrom.Y].BorderWidth = 1;
+                board[moveFrom.X, moveFrom.Y].BorderColor = System.Drawing.Color.Black;
+
+            }
 		}
 		private void MovePiece(Point from, Point to)
 		{
@@ -313,7 +320,37 @@ namespace Chess
 		public int X;
 		public int Y;
 		public string color;
-	}
+
+        // The code below came from Mohammad Dehghan @ http://stackoverflow.com/questions/14691758/setting-a-size-for-a-label-border
+        private int _borderWidth = 1;
+        public int BorderWidth {
+            get { return _borderWidth; }
+            set {
+                _borderWidth = value;
+                Invalidate();
+            }
+        }
+
+        private System.Drawing.Color _borderColor = System.Drawing.Color.Black;
+        public System.Drawing.Color BorderColor {
+            get { return _borderColor; }
+            set {
+                _borderColor = value;
+                Invalidate();
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e) {
+            base.OnPaint(e);
+
+            int xy = 0;
+            int width = this.ClientSize.Width;
+            int height = this.ClientSize.Height;
+            Pen pen = new Pen(_borderColor);
+            for (int i = 0; i < _borderWidth; i++)
+                e.Graphics.DrawRectangle(pen, xy + i, xy + i, width - (i << 1) - 1, height - (i << 1) - 1);
+        }
+    }
 
 			
 }
