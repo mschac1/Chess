@@ -21,3 +21,11 @@ C:\Users\Menachem\Documents\Visual Studio 2015\Projects\Chess\obj\Debug\Chess.cs
 C:\Users\Menachem\Documents\Visual Studio 2015\Projects\Chess\obj\Debug\Chess.frmPromotePawn.resources
 C:\Users\Menachem\Documents\Visual Studio 2015\Projects\Chess\obj\Debug\Chess.frmChess.resources
 C:\Users\Menachem\Documents\Visual Studio 2015\Projects\Chess\obj\Debug\Chess.csproj.GenerateResource.Cache
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.exe
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.pdb
+C:\Users\NWCP\Documents\Personal\C#\Chess\bin\Debug\Chess.exe
+C:\Users\NWCP\Documents\Personal\C#\Chess\bin\Debug\Chess.pdb
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.csprojResolveAssemblyReference.cache
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.frmPromotePawn.resources
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.frmChess.resources
+C:\Users\NWCP\Documents\Personal\C#\Chess\obj\Debug\Chess.csproj.GenerateResource.Cache

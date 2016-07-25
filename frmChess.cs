@@ -1,16 +1,12 @@
 using System;
 using System.Drawing;
-using System.Collections;
 using System.ComponentModel;
 using System.Windows.Forms;
-using System.Data;
 using static Chess.Rank;
 using System.IO;
 
-namespace Chess
-{
-    // TODO neaten up this file a bit
-	public class frmChess : System.Windows.Forms.Form
+namespace Chess {
+    public class frmChess : System.Windows.Forms.Form
 	{
 		#region Variables
 
@@ -215,8 +211,7 @@ namespace Chess
 
 		private void frmChess_Load(object sender, System.EventArgs e)
 		{
-			game = new ChessGame();
-			
+			game = new ChessGame();			
 			newGame();
 		}
 		private void newGame()
@@ -309,7 +304,7 @@ namespace Chess
 		}
 
         private void menuUndo_Click(object sender, EventArgs e) {
-            game.ReverseMove();
+            game.UndoMove();
             RefreshBoard();
             lblStatus.Text = game.Status;
         }
